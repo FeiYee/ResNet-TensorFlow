@@ -66,3 +66,5 @@ Unit.cfg    配置文件说明
 -----------
     1、确保useModel中的图像大小、分类数目以及分类标签的正确
     2、run python3 --model=模型路径与模型名
+    
+文章地址：https://blog.csdn.net/qq_26063799/article/details/82995648
