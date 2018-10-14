@@ -15,7 +15,7 @@ parser.add_argument("--classes",type=int,default=cfg_image["num_classes"])
 parser.add_argument("--batch_size",type=int,default=cfg_train["batch_size"])
 parser.add_argument("--step",type=int,default=cfg_train["step"])
 parser.add_argument("--output",type=str,default="model")
-parser.add_argument("--save_num",type=int,default=200)
+parser.add_argument("--save_num",type=int,default=1000)
 parser.add_argument("--log_num",type=int,default=50)
 parser.add_argument("--model",type=str,default=None)
 
@@ -38,7 +38,7 @@ def losses(logits, labels):
     with tf.variable_scope('loss') as scope:
         labels = tf.reshape(labels, [-1])
         labels = tf.one_hot(labels, depth=logits.get_shape().as_list()[1])
-        cross_entropy = tf.nn.softmax_cross_entropy_with_logits \
+        cross_entropy = tf.nn.softmax_cross_entropy_with_logits_v2 \
             (logits=logits, labels=labels, name='xentropy_per_example')
         loss = tf.reduce_mean(cross_entropy, name='loss') + tf.add_n(
             tf.get_collection(tf.GraphKeys.REGULARIZATION_LOSSES))
@@ -68,7 +68,7 @@ def evaluation(logits, labels):
         accuracy = tf.reduce_mean(tf.cast(tf.equal(tf.argmax(logits,1), labels), tf.float32))
         tf.summary.scalar(scope.name + '/accuracy', accuracy)
     return accuracy
-
+    
 def train():
     x = tf.placeholder(tf.float32, [
         None,IMAGE_SIZE,IMAGE_SIZE,
@@ -78,7 +78,7 @@ def train():
     # 是否处于训练状态
     is_train = tf.placeholder(tf.bool, [1], name="is_train")
     # 获取结果
-    y = resnet.inference(x, resnet.ResNet_demo['layer-152'], N_CLASSES, is_train[0])
+    y = resnet.inference(x, resnet.ResNet_demo['layer_101'], N_CLASSES, is_train[0])
 
     loss = losses(y, y_)
     acc = evaluation(y, y_)
@@ -87,16 +87,17 @@ def train():
         train_op = tf.no_op(name='train')
     # TensorFlow持久化类。
     tf.add_to_collection('pred_network', y)
-    saver = tf.train.Saver(tf.all_variables(), max_to_keep=20)
+    saver = tf.train.Saver(tf.all_variables(), max_to_keep=50)
     with tf.Session() as sess:
-        get_flow = OF(sess, "Train", [IMAGE_SIZE, IMAGE_SIZE, NUM_CHANNELS], BATCH_SIZE)
         # 初始化神经网络
         tf.global_variables_initializer().run()
+        with tf.device("/cpu:0"):
+            get_flow = OF(sess, "Train", [IMAGE_SIZE, IMAGE_SIZE, NUM_CHANNELS], BATCH_SIZE)
+            # 获取训练TenSor
+            next_batch = get_flow.get_batch_data()
         if MODEL is not None:
             # 加载模型
             saver.restore(sess, MODEL)
-        # 获取训练TenSor
-        next_batch = get_flow.get_batch_data()
         tf.summary.image("R.G.B", tf.expand_dims(next_batch[0][0], 0))
         merged = tf.summary.merge_all()
         log_summary = tf.summary.FileWriter("log_files", sess.graph)
