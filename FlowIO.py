@@ -5,9 +5,11 @@
 '''
 import os
 import tensorflow as tf
-from tensorflow.contrib import data
+from tensorflow import data
 from configobj import ConfigObj
 from tqdm import tqdm
+from random import shuffle
+
 
 # IN
 class TFRecodeLib():
@@ -22,8 +24,8 @@ class TFRecodeLib():
         self.train_ratio = float(section['train_ratio'])
         self.train_file,self.test_file = self.get_file_name(self.file_root + self.data_path)
         self.file_name = []
-        self.image_w = int(section['image_w'])
-        self.image_h = int(section['image_h'])
+        self.image_w = int(section['image_size'])
+        self.image_h = int(section['image_size'])
         print("Init is success")
 
 
@@ -34,24 +36,38 @@ class TFRecodeLib():
         :param file_dir: 源路径
         :return: 训练List ， 测试List
         '''
+        temp_list = []
+        train_list = []
+        test_list = []
         i = 0
-        temp_dir = []
-        train_path = []
-        test_path = []
-        for _, dirs, files in os.walk(file_dir):
-            if len(dirs) > 0:
-                temp_dir = dirs
-            if len(files) > 0:
-                j = 0
-                for file in files:
-                    if j <= len(files) * self.train_ratio:
-                        train_path.append([int(temp_dir[i]),temp_dir[i] + "/" + file])
-                        j += 1
-                    else:
-                        test_path.append([int(temp_dir[i]),temp_dir[i] + "/" + file])
+        label,_ = self.dirName(file_dir)
+        # 读取所有图像路径
+        for path in label:
+            temp_list.append([])
+            for image_name in self.dirName(file_dir + path)[1]:
+                temp_list[i].append([int(path),file_dir + path + '/' + image_name])
+            i += 1
+        # 分割数据集
+        for data in temp_list:
+            shuffle(data)
+            i = 0
+            for temp_data in data:
+                if len(data) * self.train_ratio > i:
+                    train_list.append(temp_data)
+                else:
+                    test_list.append(temp_data)
                 i += 1
-
-        return train_path,test_path
+        shuffle(train_list)
+        return train_list,test_list
+    
+    def dirName(self,path):
+        '''
+        读取路径下所有子文件夹名与文件名
+        :param path: 根目录
+        :return: [文件夹1名，文件夹2名，......]，[文件1名，文件2名，......]
+        '''
+        for _, dirs, files in os.walk(path):
+            return dirs,files
 
     def _int64_feature(self,value):
         return tf.train.Feature(int64_list=tf.train.Int64List(value=[value]))
@@ -73,15 +89,16 @@ class TFRecodeLib():
             num_shards = int(num_shards)
         image_index = 0
         for i in tqdm(range(num_shards),desc="封装总进度："):
-            file_name = (self.file_root + "TFRecode/" + tfr_name + '.tfrecodes-%.2d-of-%.2d'%(i,num_shards))
+            file_name = (self.file_root + "TFRecode0/" + tfr_name + '.tfrecodes-%.2d-of-%.2d'%(i,num_shards))
             writer = tf.python_io.TFRecordWriter(file_name)
             for j in tqdm(range(self.instances_per_shard),desc="封装" + str(i) + " : "):
                 if image_index == len(data):
                     break
                 image_lable = data[image_index][0]
                 image_file_name = data[image_index][1]
-                image_raw_data = tf.gfile.FastGFile(self.file_root + self.data_path + image_file_name, 'rb').read()
+                image_raw_data = tf.gfile.FastGFile(image_file_name, 'rb').read()
                 image = tf.image.decode_jpeg(image_raw_data)
+                image = tf.image.convert_image_dtype(image,tf.float32)
                 image = tf.image.resize_images(image,[self.image_w,self.image_h])
                 image = tf.image.per_image_standardization(image)
                 image = image.eval(session=tf.Session())
@@ -112,7 +129,7 @@ class TFRecodeLib():
 # OUT
 class DataSetLib():
     def __init__(self,sess,select_class,image_shape,batch_size):
-        self.recode_path = "LiaoNing/TFRecode/"
+        self.recode_path = "data/TFRecode/"
         self.sess = sess
         self.select_class = select_class
         self.image_w = int(image_shape[0])
@@ -172,12 +189,17 @@ class DataSetLib():
 
     def total_image_norm(self,image,shape):
         '''
-        通用图像标准化
+        通用图像标准化与数据增强
         :param image:   图像通道
         :param shape:   理想维度
         :return:        标准化图像通道
         '''
         image = tf.reshape(image, shape)
+        if self.shuffle:
+            image = tf.image.random_flip_up_down(image)
+            image = tf.image.random_flip_left_right(image)
+            image = tf.image.random_brightness(image, max_delta=0.5) 
+            image = tf.image.random_contrast(image,lower=0.2, upper=1.8)
         return image
 
     def get_batch_data(self):
@@ -185,6 +207,7 @@ class DataSetLib():
         获取 Batch size 数据
         :return:  图像Tensor ， 标签Tensor
         '''
+        print("数据集 ： ",self.data)
         dataSet = data.TFRecordDataset(self.data)
         dataSet = dataSet.map(self.parse)
         dataSet = dataSet.map(lambda image,label:(self.total_image_norm(image,[self.image_w,self.image_h,3]),label))
@@ -203,5 +226,6 @@ class DataSetLib():
 生成TFRecode
 '''
 if __name__ == '__main__':
-    a = TFRecodeLib()
-    a.save_all()
+    with tf.device("/cpu:0"):
+        a = TFRecodeLib()
+        a.save_all()
