@@ -1,14 +1,15 @@
-﻿import tensorflow as tf
+import tensorflow as tf
 import numpy as np
 from FlowIO import DataSetLib as OF
 import argparse as aps
 from configobj import ConfigObj
+from tqdm import tqdm
 
 cfg_struct = ConfigObj("Unit.cfg")
 cfg_test = cfg_struct['Test data']
 cfg_image = cfg_struct['Image data']
 parser = aps.ArgumentParser(description="manual to this script")
-parser.add_argument("--model",type=str,default="model/mod.ckpt-0")
+parser.add_argument("--model",type=str,default=None)
 parser.add_argument("--num_test",type=int,default=cfg_test["num_test"])
 parser.add_argument("--classes",type=int,default=cfg_image["num_classes"])
 parser.add_argument("--batch_size",type=int,default=cfg_test["batch_size"])
@@ -49,14 +50,15 @@ def test():
         # 取出测试集合
         test_pred_acc = []
         test_label_acc = []
-        for i in range(NUM_TEST // BATCH_SIZE):
-            print(NUM_TEST,"------",i * BATCH_SIZE)
+        for i in tqdm(range(NUM_TEST // BATCH_SIZE),"测试中"):
             test_x,test_y = sess.run(next_batch)
             test_label_acc.append(np.reshape(test_y,[-1]))
             # 使用y进行预测
             pred_y = sess.run(tf.nn.softmax(pred,1), feed_dict={inputs:test_x,labels:test_y,is_train:[False]})
-
             test_pred_acc.append(pred_y)
+            print("pred : ",np.argmax(pred_y,1))
+            print("real : ",np.reshape(test_y,[-1]))
+            
         test_label_acc = np.reshape(test_label_acc,[(NUM_TEST // BATCH_SIZE) * BATCH_SIZE])
         test_pred_acc = np.reshape(test_pred_acc,[(NUM_TEST // BATCH_SIZE) * BATCH_SIZE,N_CLASSES])
         test_pred_acc = tf.cast(test_pred_acc,dtype=tf.float32)
@@ -67,5 +69,5 @@ def test():
 
 # 传入模型
 if __name__ == '__main__':
-    # with tf.device("/cpu:0"):
-    test()
+    with tf.device("/cpu:0"):
+        test()
