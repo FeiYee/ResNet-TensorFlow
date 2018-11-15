@@ -26,11 +26,10 @@ MODEL_PATH = args.model
 NUM_TEST = args.num_test
 
 def evaluation(logits, labels):
-    with tf.variable_scope('accuracy') as scope:
-        correct = tf.nn.in_top_k(logits, labels, 1)
-        correct = tf.cast(correct, tf.float16)
+    with tf.variable_scope('accuracy'):
+        correct = tf.equal(logits, labels)
+        correct = tf.cast(correct, tf.float32)
         accuracy = tf.reduce_mean(correct)
-        tf.summary.scalar(scope.name + '/accuracy', accuracy)
     return accuracy
 
 def test():
@@ -52,16 +51,12 @@ def test():
         test_label_acc = []
         for i in tqdm(range(NUM_TEST // BATCH_SIZE),"测试中"):
             test_x,test_y = sess.run(next_batch)
-            test_label_acc.append(np.reshape(test_y,[-1]))
+            test_label_acc.extend(np.reshape(np.argmax(test_y,1),[-1]))
             # 使用y进行预测
-            pred_y = sess.run(tf.nn.softmax(pred,1), feed_dict={inputs:test_x,labels:test_y,is_train:[False]})
-            test_pred_acc.append(pred_y)
-            print("pred : ",np.argmax(pred_y,1))
-            print("real : ",np.reshape(test_y,[-1]))
+            pred_y = sess.run(tf.argmax(pred,1), feed_dict={inputs:test_x,labels:test_y,is_train:[False]})
+            test_pred_acc.extend(pred_y)
             
-        test_label_acc = np.reshape(test_label_acc,[(NUM_TEST // BATCH_SIZE) * BATCH_SIZE])
-        test_pred_acc = np.reshape(test_pred_acc,[(NUM_TEST // BATCH_SIZE) * BATCH_SIZE,N_CLASSES])
-        test_pred_acc = tf.cast(test_pred_acc,dtype=tf.float32)
+        test_pred_acc = tf.cast(test_pred_acc,dtype=tf.int32)
         test_label_acc = tf.cast(test_label_acc,dtype=tf.int32)
         pred_acc = evaluation(test_pred_acc, test_label_acc)
         acc = sess.run(pred_acc)
