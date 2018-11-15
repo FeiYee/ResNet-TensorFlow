@@ -89,7 +89,7 @@ class TFRecodeLib():
             num_shards = int(num_shards)
         image_index = 0
         for i in tqdm(range(num_shards),desc="封装总进度："):
-            file_name = (self.file_root + "TFRecode0/" + tfr_name + '.tfrecodes-%.2d-of-%.2d'%(i,num_shards))
+            file_name = (self.file_root + "TFRecode/" + tfr_name + '.tfrecodes-%.2d-of-%.2d'%(i,num_shards))
             writer = tf.python_io.TFRecordWriter(file_name)
             for j in tqdm(range(self.instances_per_shard),desc="封装" + str(i) + " : "):
                 if image_index == len(data):
