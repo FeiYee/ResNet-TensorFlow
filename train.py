@@ -46,14 +46,9 @@ def losses(logits, labels):
     return loss
 
 
-def trainning(loss, learning_rate,batch_size,num_data):
+def trainning(loss, learning_rate):
     with tf.name_scope('optimizer'):
         global_step = tf.Variable(0, name='global_step', trainable=False)
-        learning_rate = tf.train.exponential_decay(
-        learning_rate,
-        global_step,
-        num_data / batch_size, 0.99,
-        staircase=True)
         optimizer = tf.train.AdamOptimizer(learning_rate=learning_rate)
         update_ops = tf.get_collection(tf.GraphKeys.UPDATE_OPS)
         with tf.control_dependencies(update_ops):
