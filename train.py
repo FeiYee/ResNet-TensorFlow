@@ -1,9 +1,12 @@
-﻿import tensorflow as tf
-import ResNet_lib as resnet
-from FlowIO import DataSetLib as OF
 import os
 import argparse as aps
+import tensorflow as tf
+import ResNet_lib as resnet
+
 from configobj import ConfigObj
+from FlowIO import DataSetLib as OF
+
+os.environ["CUDA_VISIBLE_DEVICES"] = "0"
 
 cfg_struct = ConfigObj("Unit.cfg")
 cfg_train = cfg_struct['Train data']
@@ -32,7 +35,9 @@ MODEL_PATH = args.output      # 模型保存地址
 LOG_NUM = args.log_num        # 输出步长
 MODEL = args.model            # 加载模型继续训练
 
-
+config = tf.ConfigProto()
+config.gpu_options.allow_growth = True
+session = tf.Session(config=config)
 
 def losses(logits, labels):
     with tf.variable_scope('loss') as scope:
@@ -71,9 +76,9 @@ def train():
     # 标签
     y_ = tf.placeholder(tf.int64, [None,1], name='y-input')
     # 是否处于训练状态
-    is_train = tf.placeholder(tf.bool, [1], name="is_train")
+    is_train = tf.placeholder(tf.bool, name="is_train")
     # 获取结果
-    y = resnet.inference(x, resnet.ResNet_demo['layer_101'], N_CLASSES, is_train[0])
+    y = resnet.inference(x, resnet.ResNet_demo['layer_101'], N_CLASSES, is_train)
 
     loss = losses(y, y_)
     acc = evaluation(y, y_)
@@ -100,7 +105,7 @@ def train():
         for i in range(STEP):
             iamges,labels = sess.run(next_batch)
             _, loss_value,acc_value,merged_value = sess.run([train_op, loss,acc,merged],
-                                           feed_dict={x: iamges, y_: labels,is_train:[True]})
+                                           feed_dict={x: iamges, y_: labels,is_train:True})
             log_summary.add_summary(merged_value,i)
             if i % LOG_NUM == 0:
                 print("After %d training step(s), loss on training batch is %g." % (i, loss_value),"acc : ",acc_value)
