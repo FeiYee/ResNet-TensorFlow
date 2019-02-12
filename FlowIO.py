@@ -200,6 +200,8 @@ class DataSetLib():
             image = tf.image.random_flip_left_right(image)
             image = tf.image.random_brightness(image, max_delta=0.5) 
             image = tf.image.random_contrast(image,lower=0.2, upper=1.8)
+            image = tf.image.random_hue(image,max_delta=0.2)
+            image = tf.image.random_saturation(image,lower=0.4,upper=1.2)
         return image
 
     def get_batch_data(self):
