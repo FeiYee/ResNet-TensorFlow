@@ -229,5 +229,4 @@ class DataSetLib():
 '''
 if __name__ == '__main__':
     with tf.device("/cpu:0"):
-        a = TFRecodeLib()
-        a.save_all()
+        TFRecodeLib().save_all()
