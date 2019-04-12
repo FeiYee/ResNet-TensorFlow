@@ -82,7 +82,7 @@ def train():
 
     loss = losses(y, y_)
     acc = evaluation(y, y_)
-    train_step = trainning(loss, LEARNING_RATE_BASE, BATCH_SIZE)
+    train_step = trainning(loss, LEARNING_RATE_BASE)
     with tf.control_dependencies([train_step]):
         train_op = tf.no_op(name='train')
     # TensorFlow持久化类。
