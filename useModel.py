@@ -43,7 +43,7 @@ def useModel():
         for path in test:
             image = read_image_tensor("data/testdata/"+path)
             image = sess.run(image)
-            pred_y = sess.run(tf.nn.softmax(pred,1), feed_dict={inputs:image,is_train:[False]})
+            pred_y = sess.run(tf.nn.softmax(pred,1), feed_dict={inputs:image,is_train:False})
             max_index = list(map(list(pred_y[0]).index,nlargest(3,pred_y[0])))
             max_num = nlargest(3,pred_y[0])
             print("预测类别前三 ： ")
