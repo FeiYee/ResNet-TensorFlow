@@ -53,7 +53,7 @@ def test():
             test_x,test_y = sess.run(next_batch)
             test_label_acc.extend(np.reshape(test_y,[-1]))
             # 使用y进行预测
-            pred_y = sess.run(tf.argmax(pred,1), feed_dict={inputs:test_x,labels:test_y,is_train:[False]})
+            pred_y = sess.run(tf.argmax(pred,1), feed_dict={inputs:test_x,labels:test_y,is_train:False})
             test_pred_acc.extend(pred_y)
             
         test_pred_acc = tf.cast(test_pred_acc,dtype=tf.int32)
