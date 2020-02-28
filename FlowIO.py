@@ -1,4 +1,4 @@
-﻿'''
+'''
     TFRecode I/O 流控制器
             2018-06-14
             by-fffeiyee
@@ -20,12 +20,13 @@ class TFRecodeLib():
         self.test_cfg = self.config['Test data']
         self.file_root = section['data_root']
         self.data_path = section['image_path']
-        self.instances_per_shard = 500  # 定义每个文件的写入数量
+        self.instances_per_shard = 5000 # 定义每个文件的写入数量
         self.train_ratio = float(section['train_ratio'])
         self.train_file,self.test_file = self.get_file_name(self.file_root + self.data_path)
         self.file_name = []
         self.image_w = int(section['image_size'])
         self.image_h = int(section['image_size'])
+        self.sess = tf.Session()
         print("Init is success")
 
 
@@ -101,7 +102,7 @@ class TFRecodeLib():
                 image = tf.image.convert_image_dtype(image,tf.float32)
                 image = tf.image.resize_images(image,[self.image_w,self.image_h])
                 image = tf.image.per_image_standardization(image)
-                image = image.eval(session=tf.Session())
+                image = self.sess.run(image)
                 image = image.tostring()
                 example = tf.train.Example(features=tf.train.Features(feature={
                     'image':self._bytes_feature(image),
@@ -109,7 +110,9 @@ class TFRecodeLib():
                 }))
                 writer.write(example.SerializeToString())
                 image_index += 1
-            writer.close()
+                if image_index % 20 == 0:
+                    tf.reset_default_graph()
+                    self.sess = tf.Session()
             if image_index == len(data):
                 break
 
